@@ -10,8 +10,8 @@ Medium-blocked sites can be accessed after you do X seconds of journaling
 
 Medium-blocked sites can redirect you to the journal every Y minutes 
 
-Stores the amount of time you've spent on the different sites
+Stores the amount of time you've spent on the different sites; displays on UI along with journal entries
 
 This is all configurable
 
-shout to my boy Claude
+shoutout to my boy Claude
