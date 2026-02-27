@@ -305,13 +305,14 @@
           <div class="opt-right">
             <input type="number" class="opt-input" id="listsLockMin" min="0" value="3" disabled>
             <span class="opt-unit">min</span>
+            <span class="tab-lock" id="listsLockBubble">🔒</span>
           </div>
         </div>
         <div class="opt-row">
-          <div><strong>Interruptions</strong><span class="opt-desc">Number of "are you sure?" prompts during wait</span></div>
+          <div><strong>Interruption frequency</strong><span class="opt-desc">Seconds between "are you sure?" prompts</span></div>
           <div class="opt-right">
-            <input type="number" class="opt-input" id="interruptCount" min="0" value="5">
-            <span class="opt-unit">times</span>
+            <input type="number" class="opt-input" id="interruptFreq" min="0" value="60">
+            <span class="opt-unit">sec</span>
           </div>
         </div>
       </div>
@@ -346,21 +347,33 @@
       <div class="opt-card">
         <div class="opt-row"><div><strong>Custom messages</strong></div></div>
         <div class="opt-row">
-          <div><span class="opt-desc">Lock interruption</span></div>
-          <div class="opt-right" style="flex:1;max-width:300px;">
+          <div style="width:140px;flex-shrink:0"><span class="opt-desc">Lock interruption</span></div>
+          <div class="opt-right" style="flex:1;">
             <input type="text" class="opt-input wide" id="msgInterrupt" value="Are you sure you want to do this?">
           </div>
         </div>
         <div class="opt-row">
-          <div><span class="opt-desc">Streak end confirmation</span></div>
-          <div class="opt-right" style="flex:1;max-width:300px;">
+          <div style="width:140px;flex-shrink:0"><span class="opt-desc">Streak end</span></div>
+          <div class="opt-right" style="flex:1;">
             <input type="text" class="opt-input wide" id="msgStreakEnd" value="End your streak here?">
           </div>
         </div>
         <div class="opt-row">
-          <div><span class="opt-desc">Remove site confirmation</span></div>
-          <div class="opt-right" style="flex:1;max-width:300px;">
+          <div style="width:140px;flex-shrink:0"><span class="opt-desc">Remove site</span></div>
+          <div class="opt-right" style="flex:1;">
             <input type="text" class="opt-input wide" id="msgRemoveSite" value="Remove {site} from the blocklist?">
+          </div>
+        </div>
+        <div class="opt-row">
+          <div style="width:140px;flex-shrink:0"><span class="opt-desc">Journal heading</span></div>
+          <div class="opt-right" style="flex:1;">
+            <input type="text" class="opt-input wide" id="msgJournalHeading" value="Hold on.">
+          </div>
+        </div>
+        <div class="opt-row">
+          <div style="width:140px;flex-shrink:0"><span class="opt-desc">Journal prompt</span></div>
+          <div class="opt-right" style="flex:1;">
+            <input type="text" class="opt-input wide" id="msgJournalPrompt" value="Why are you going there? What do you intend to do?">
           </div>
         </div>
       </div>

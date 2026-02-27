@@ -7,11 +7,13 @@ const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 const DEFAULT_SETTINGS = {
-  darkMode: true, optLockMin: 0, listsLockMin: 3, interruptCount: 5,
+  darkMode: true, optLockMin: 0, listsLockMin: 3, interruptFreq: 60,
   defaultJournal: 300, defaultRejournal: 900, streakSubtitle: '🏆',
   msgInterrupt: 'Are you sure you want to do this?',
   msgStreakEnd: 'End your streak here?',
   msgRemoveSite: 'Remove {site} from the blocklist?',
+  msgJournalHeading: 'Hold on.',
+  msgJournalPrompt: 'Why are you going there? What do you intend to do?',
   confirmRemove: true,
 };
 
@@ -227,8 +229,8 @@ function launchConfetti() {
 
 // === Lock System ===
 const locks = {
-  lists: { remaining: 180, unlocked: false, started: false, interruptsFired: 0, interruptShowing: false },
-  options: { remaining: 0, unlocked: false, started: false, interruptsFired: 0, interruptShowing: false },
+  lists: { remaining: 180, unlocked: false, started: false, interruptShowing: false },
+  options: { remaining: 0, unlocked: false, started: false, interruptShowing: false },
 };
 let activeLock = null;
 
@@ -252,14 +254,16 @@ function unlockLock(name) {
   locks[name].unlocked = true;
   locks[name].remaining = 0;
   updateLockDisplay(name);
-  if (name === 'lists') document.getElementById('listsLockMin').disabled = false;
+  if (name === 'lists') {
+    document.getElementById('listsLockMin').disabled = false;
+    const bubble = document.getElementById('listsLockBubble');
+    if (bubble) bubble.style.display = 'none';
+  }
 }
 
-function getInterruptInterval(name) {
-  const count = S('interruptCount');
-  if (count <= 0) return Infinity;
-  const total = name === 'lists' ? S('listsLockMin') * 60 : S('optLockMin') * 60;
-  return Math.floor(total / (count + 1));
+function getInterruptInterval() {
+  const freq = S('interruptFreq');
+  return freq > 0 ? freq : Infinity;
 }
 
 document.getElementById('interruptYes').addEventListener('click', () => {
@@ -273,11 +277,10 @@ setInterval(() => {
     if (L.unlocked || !L.started || document.hidden || L.interruptShowing) continue;
     L.remaining--;
     if (L.remaining <= 0) { unlockLock(name); continue; }
-    const interval = getInterruptInterval(name);
-    const totalElapsed = (name === 'lists' ? S('listsLockMin') * 60 : S('optLockMin') * 60) - L.remaining;
-    const expectedInterrupts = interval > 0 ? Math.floor(totalElapsed / interval) : 0;
-    if (expectedInterrupts > L.interruptsFired && L.remaining > 0) {
-      L.interruptsFired++;
+    const interval = getInterruptInterval();
+    L.elapsedSinceInterrupt = (L.elapsedSinceInterrupt || 0) + 1;
+    if (interval < Infinity && L.elapsedSinceInterrupt >= interval && L.remaining > 0) {
+      L.elapsedSinceInterrupt = 0;
       L.interruptShowing = true;
       activeLock = name;
       document.getElementById('interruptText').textContent = S('msgInterrupt');
@@ -335,7 +338,7 @@ document.getElementById('nextMonth').addEventListener('click', () => { viewMonth
   // Populate options inputs
   document.getElementById('optLockMin').value = S('optLockMin');
   document.getElementById('listsLockMin').value = S('listsLockMin');
-  document.getElementById('interruptCount').value = S('interruptCount');
+  document.getElementById('interruptFreq').value = S('interruptCount');
   document.getElementById('defaultJournalMin').value = Math.floor(S('defaultJournal')/60);
   document.getElementById('defaultJournalSec').value = S('defaultJournal')%60;
   document.getElementById('defaultRejMin').value = Math.floor(S('defaultRejournal')/60);
@@ -344,6 +347,8 @@ document.getElementById('nextMonth').addEventListener('click', () => { viewMonth
   document.getElementById('msgInterrupt').value = S('msgInterrupt');
   document.getElementById('msgStreakEnd').value = S('msgStreakEnd');
   document.getElementById('msgRemoveSite').value = S('msgRemoveSite');
+  document.getElementById('msgJournalHeading').value = S('msgJournalHeading');
+  document.getElementById('msgJournalPrompt').value = S('msgJournalPrompt');
 
   // Lists lock locked
   if (!locks.lists.unlocked) document.getElementById('listsLockMin').disabled = true;
@@ -361,11 +366,13 @@ function optChange(id, key, transform) {
 }
 optChange('optLockMin', 'optLockMin', v => Math.max(0, parseInt(v)||0));
 optChange('listsLockMin', 'listsLockMin', v => Math.max(0, parseInt(v)||0));
-optChange('interruptCount', 'interruptCount', v => Math.max(0, parseInt(v)||0));
+optChange('interruptFreq', 'interruptFreq', v => Math.max(0, parseInt(v)||0));
 optChange('streakSubtitle', 'streakSubtitle', v => v);
 optChange('msgInterrupt', 'msgInterrupt', v => v);
 optChange('msgStreakEnd', 'msgStreakEnd', v => v);
 optChange('msgRemoveSite', 'msgRemoveSite', v => v);
+optChange('msgJournalHeading', 'msgJournalHeading', v => v);
+optChange('msgJournalPrompt', 'msgJournalPrompt', v => v);
 
 // Default journal/rejournal time
 ['defaultJournalMin','defaultJournalSec','defaultRejMin','defaultRejSec'].forEach(id => {
