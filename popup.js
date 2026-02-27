@@ -33,7 +33,7 @@ let pendingSite = null;
 
 function buildSiteObj() {
   const hostname = hostnameInput.value.trim()
-    .replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/.*$/, '');
+    .replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/+$/, '');
   if (!hostname) return null;
 
   const isHard = hardblockBox.checked;
@@ -122,3 +122,15 @@ dashLink.addEventListener('click', (e) => {
   e.preventDefault();
   chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
 });
+
+// Load saved defaults
+(async () => {
+  const data = await chrome.storage.local.get(['settings']);
+  const s = data.settings || {};
+  const dj = s.defaultJournal ?? 300;
+  const dr = s.defaultRejournal ?? 900;
+  journalMinInput.value = Math.floor(dj / 60);
+  journalSecInput.value = dj % 60;
+  rejMinInput.value = Math.floor(dr / 60);
+  rejSecInput.value = dr % 60;
+})();

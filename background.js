@@ -1,13 +1,28 @@
-const activePasses = {};
+let activePasses = {};
 let tracking = { tabId: null, hostname: null, startTime: null };
+
+async function savePasses() {
+  await chrome.storage.local.set({ activePasses });
+}
+
+(async () => {
+  const data = await chrome.storage.local.get(['activePasses']);
+  if (data.activePasses) activePasses = data.activePasses;
+})();
 
 function cleanHostname(h) {
   return h.replace(/^www\./, '');
 }
 
-function matchBlocked(hostname, blockedSites) {
-  const clean = cleanHostname(hostname);
-  return blockedSites.find(s => clean === s.hostname || clean.endsWith('.' + s.hostname));
+function matchBlocked(url, blockedSites) {
+  const hostname = cleanHostname(url.hostname);
+  const fullPath = hostname + url.pathname;
+  return blockedSites.find(s => {
+    if (s.hostname.includes('/')) {
+      return fullPath.startsWith(s.hostname) || fullPath.startsWith(s.hostname + '/');
+    }
+    return hostname === s.hostname || hostname.endsWith('.' + s.hostname);
+  });
 }
 
 function matchException(url, exceptions) {
@@ -34,7 +49,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   const data = await chrome.storage.local.get(['blockedSites', 'exceptions']);
   const blockedSites = data.blockedSites || [];
   const exceptions = data.exceptions || [];
-  const blocked = matchBlocked(hostname, blockedSites);
+  const blocked = matchBlocked(url, blockedSites);
   if (!blocked) return;
 
   if (matchException(url, exceptions)) return;
@@ -68,6 +83,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         accumulatedSeconds: 0,
         rejournalSeconds,
       };
+      savePasses();
       chrome.tabs.update(tabId, { url: msg.url });
     });
     sendResponse({ ok: true });
@@ -102,7 +118,7 @@ async function startTrackingIfBlocked(tabId) {
 
     const hostname = cleanHostname(url.hostname);
     const data = await chrome.storage.local.get(['blockedSites']);
-    const blocked = matchBlocked(hostname, data.blockedSites || []);
+    const blocked = matchBlocked(url, data.blockedSites || []);
     if (!blocked) return;
 
     const pass = activePasses[tabId];
@@ -125,6 +141,7 @@ async function stopTracking() {
 
   if (activePasses[tabId] && activePasses[tabId].hostname === hostname) {
     activePasses[tabId].accumulatedSeconds += elapsed;
+    savePasses();
   }
 
   if (elapsed < 1) return;
@@ -142,6 +159,7 @@ async function revokePass(tabId) {
   if (!pass) return;
 
   delete activePasses[tabId];
+  savePasses();
 
   try {
     const tab = await chrome.tabs.get(tabId);
@@ -194,6 +212,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     const newHostname = cleanHostname(url.hostname);
     if (newHostname !== pass.hostname && !newHostname.endsWith('.' + pass.hostname)) {
       delete activePasses[tabId];
+      savePasses();
       return;
     }
   }
@@ -207,6 +226,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   if (tracking.tabId === tabId) await stopTracking();
   delete activePasses[tabId];
+  savePasses();
 });
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
