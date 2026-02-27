@@ -312,6 +312,55 @@
       margin-top: 1px;
     }
     .cal-day.selected .day-time { color: #ffd700; }
+    .cal-day.streak {
+      background: #27ae60;
+      color: white;
+      cursor: pointer;
+    }
+    .cal-day.streak .dot { background: white; }
+    .cal-day.streak .day-time { color: rgba(255,255,255,0.8); }
+    .cal-day.streak.selected { background: #1e8449; }
+    .cal-day.future { opacity: 0.3; pointer-events: none; }
+
+    .streak-bar {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid #f0f0f0;
+      text-align: center;
+    }
+    .streak-begin {
+      background: #27ae60;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .streak-begin:hover { background: #1e8449; }
+    .streak-active {
+      font-size: 13px;
+      color: #27ae60;
+      font-weight: 600;
+    }
+    .streak-hint {
+      font-size: 11px;
+      color: #aaa;
+      margin-top: 4px;
+    }
+    .streak-end {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .streak-end:hover { background: #c0392b; }
 
     /* Day detail panel */
     .day-detail { margin-top: 20px; }
@@ -429,6 +478,24 @@
       cursor: pointer;
     }
     .binge-dismiss:hover { background: #636e72; }
+    .streak-btn {
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #555;
+    }
+    .streak-btn:hover { border-color: #636e72; color: #333; }
+    .confetti-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
 
     /* Exceptions */
     .ex-desc {
@@ -568,6 +635,7 @@
           <button id="nextMonth">Next →</button>
         </div>
         <div class="cal-grid" id="calGrid"></div>
+        <div class="streak-bar" id="streakBar"></div>
       </div>
       <div class="card day-detail" id="dayDetail" style="margin-top:20px;">
         <h3 id="dayDetailTitle">Select a day</h3>
@@ -575,7 +643,7 @@
       </div>
     </div>
     <div class="card" style="align-self: start;">
-      <h2>💀 Leaderboard — Total Time</h2>
+      <h2 id="lbHeading">💀 Leaderboard — Total Time</h2>
       <div id="leaderboard"><div class="lb-empty">No data yet.</div></div>
     </div>
   </div>
@@ -591,6 +659,9 @@
         <div class="bs-mini-toggle on gate-toggle-locked" id="gateToggle"><div class="bs-mini-toggle-knob"></div></div>
       </div>
     </div>
+  </div>
+  <div style="max-width:700px;margin:12px auto 0;text-align:center;">
+    <button class="streak-btn" id="streakBtn">🏆 View streak</button>
   </div>
   </div>
 
@@ -648,6 +719,7 @@
     </div>
   </div>
   <div class="binge-overlay" id="bingeOverlay">
+    <canvas class="confetti-canvas" id="confettiCanvas"></canvas>
     <div class="binge-dialog">
       <div class="binge-number" id="bingeCount">0</div>
       <div class="binge-label">days binge-free</div>

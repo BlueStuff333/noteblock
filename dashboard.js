@@ -2,14 +2,51 @@ let viewYear, viewMonth;
 let selectedDate = null;
 let timeData = {};
 let journals = [];
+let streaks = [];
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 async function loadData() {
-  const data = await chrome.storage.local.get(['timeData', 'journals']);
+  const data = await chrome.storage.local.get(['timeData', 'journals', 'streaks']);
   timeData = data.timeData || {};
   journals = data.journals || [];
+  streaks = data.streaks || [];
+}
+
+async function saveStreaks() {
+  await chrome.storage.local.set({ streaks });
+}
+
+function todayKey() {
+  const t = new Date();
+  return dateKey(t.getFullYear(), t.getMonth(), t.getDate());
+}
+
+function getActiveStreak() {
+  return streaks.find(s => s.end === null) || null;
+}
+
+function isInAnyStreak(dk) {
+  return streaks.some(s => {
+    const end = s.end || todayKey();
+    return dk >= s.start && dk <= end;
+  });
+}
+
+function isInActiveStreak(dk) {
+  const active = getActiveStreak();
+  if (!active) return false;
+  return dk >= active.start && dk <= todayKey();
+}
+
+function activeStreakLength() {
+  const active = getActiveStreak();
+  if (!active) return 0;
+  const start = new Date(active.start + 'T00:00:00');
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.floor((now - start) / (1000 * 60 * 60 * 24)) + 1;
 }
 
 function formatSeconds(s) {
@@ -47,8 +84,6 @@ function renderCalendar() {
 
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const today = new Date();
-  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
   for (let i = 0; i < firstDay; i++) {
     const el = document.createElement('div');
@@ -61,8 +96,10 @@ function renderCalendar() {
     const totalSec = totalSecondsForDate(dk);
     const el = document.createElement('div');
     el.className = 'cal-day';
-    if (dk === todayKey) el.classList.add('today');
+    if (dk === todayKey()) el.classList.add('today');
     if (dk === selectedDate) el.classList.add('selected');
+    if (isInAnyStreak(dk)) el.classList.add('streak');
+    if (dk > todayKey()) el.classList.add('future');
 
     let inner = `<span>${d}</span>`;
     if (totalSec > 0) {
@@ -72,10 +109,23 @@ function renderCalendar() {
     }
     el.innerHTML = inner;
 
-    el.addEventListener('click', () => {
-      selectedDate = dk;
-      renderCalendar();
-      renderDayDetail(dk);
+    el.addEventListener('click', async () => {
+      if (dk > todayKey()) return;
+
+      if (selectedDate === dk) {
+        selectedDate = null;
+        renderCalendar();
+        renderStreakButton();
+        document.getElementById('dayDetailTitle').textContent = 'Select a day';
+        document.getElementById('dayDetailContent').innerHTML = '<div class="no-data">Click a day on the calendar to view details.</div>';
+        renderLeaderboard();
+      } else {
+        selectedDate = dk;
+        renderCalendar();
+        renderDayDetail(dk);
+        renderLeaderboard(dk);
+        renderStreakButton();
+      }
     });
     grid.appendChild(el);
   }
@@ -145,12 +195,24 @@ function escapeHtml(s) {
 
 // --- Leaderboard ---
 
-function renderLeaderboard() {
+function renderLeaderboard(dk) {
   const totals = {};
-  for (const day of Object.values(timeData)) {
+  const heading = document.getElementById('lbHeading');
+
+  if (dk) {
+    const day = timeData[dk] || {};
     for (const [site, sec] of Object.entries(day)) {
       totals[site] = (totals[site] || 0) + sec;
     }
+    const d = new Date(dk + 'T00:00:00');
+    heading.textContent = '💀 ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } else {
+    for (const day of Object.values(timeData)) {
+      for (const [site, sec] of Object.entries(day)) {
+        totals[site] = (totals[site] || 0) + sec;
+      }
+    }
+    heading.textContent = '💀 Leaderboard — Total Time';
   }
 
   const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
@@ -198,51 +260,165 @@ document.getElementById('nextMonth').addEventListener('click', () => {
   renderCalendar();
   renderLeaderboard();
   renderBlockedSites();
+  renderStreakButton();
   showBingeFree();
+  launchConfetti();
 })();
+
+// --- Streak button ---
+
+function renderStreakButton() {
+  const bar = document.getElementById('streakBar');
+  const active = getActiveStreak();
+
+  if (active) {
+    const len = activeStreakLength();
+    let html = `<div class="streak-active">🔥 ${len} day${len === 1 ? '' : 's'} streak</div>`;
+
+    if (selectedDate && isInActiveStreak(selectedDate)) {
+      html += `<button class="streak-end" id="endStreakBtn">End streak on ${selectedDate}</button>`;
+    } else {
+      html += `<div class="streak-hint">Select a green day to end the streak there</div>`;
+    }
+    bar.innerHTML = html;
+
+    const endBtn = document.getElementById('endStreakBtn');
+    if (endBtn) {
+      endBtn.addEventListener('click', async () => {
+        if (selectedDate === active.start) {
+          streaks = streaks.filter(s => s !== active);
+        } else {
+          const prev = new Date(selectedDate + 'T00:00:00');
+          prev.setDate(prev.getDate() - 1);
+          active.end = dateKey(prev.getFullYear(), prev.getMonth(), prev.getDate());
+        }
+        await saveStreaks();
+        selectedDate = null;
+        document.getElementById('dayDetailTitle').textContent = 'Select a day';
+        document.getElementById('dayDetailContent').innerHTML = '<div class="no-data">Click a day on the calendar to view details.</div>';
+        renderCalendar();
+        renderLeaderboard();
+        renderStreakButton();
+      });
+    }
+  } else {
+    bar.innerHTML = `<button class="streak-begin" id="beginStreakBtn">Begin streak</button>`;
+    document.getElementById('beginStreakBtn').addEventListener('click', async () => {
+      streaks.push({ start: todayKey(), end: null });
+      await saveStreaks();
+      renderCalendar();
+      renderStreakButton();
+    });
+  }
+}
 
 // --- Binge-free overlay ---
 
 function showBingeFree() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  let daysFree = 0;
-
-  const dates = Object.keys(timeData).sort().reverse();
-  if (dates.length === 0) {
-    daysFree = -1; // no data at all
-  } else {
-    const lastDate = new Date(dates[0] + 'T00:00:00');
-    daysFree = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-  }
-
   const bingeCount = document.getElementById('bingeCount');
   const bingeLabel = document.querySelector('.binge-label');
+  const active = getActiveStreak();
 
-  if (daysFree < 0) {
-    bingeCount.textContent = '✓';
-    bingeLabel.textContent = 'no activity recorded yet';
+  if (active) {
+    const len = activeStreakLength();
+    bingeCount.textContent = len;
+    bingeLabel.textContent = len === 1 ? 'day streak' : 'days streak';
   } else {
-    bingeCount.textContent = daysFree;
-    bingeLabel.textContent = daysFree === 1 ? 'day binge-free' : 'days binge-free';
+    bingeCount.textContent = '🏆';
+    bingeLabel.textContent = 'no active streak';
   }
 }
 
+let confettiDone = false;
+
 document.getElementById('bingeDismiss').addEventListener('click', () => {
+  if (!confettiDone) return;
   document.getElementById('bingeOverlay').classList.add('hidden');
 });
 
 document.getElementById('bingeOverlay').addEventListener('click', (e) => {
+  if (!confettiDone) return;
   if (e.target === document.getElementById('bingeOverlay')) {
     document.getElementById('bingeOverlay').classList.add('hidden');
   }
 });
+
+// --- Streak button ---
+
+document.getElementById('streakBtn').addEventListener('click', () => {
+  confettiDone = false;
+  showBingeFree();
+  document.getElementById('bingeOverlay').classList.remove('hidden');
+  launchConfetti();
+});
+
+// --- Confetti ---
+
+function launchConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  const dismissBtn = document.getElementById('bingeDismiss');
+  if (!canvas) return;
+  dismissBtn.style.opacity = '0.3';
+  dismissBtn.style.pointerEvents = 'none';
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#f0c040', '#e74c3c', '#27ae60', '#3498db', '#9b59b6', '#e67e22', '#ff6b9d'];
+  const pieces = [];
+  for (let i = 0; i < 120; i++) {
+    pieces.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * -canvas.height,
+      w: 4 + Math.random() * 6,
+      h: 8 + Math.random() * 8,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vy: 2 + Math.random() * 3,
+      vx: (Math.random() - 0.5) * 2,
+      rot: Math.random() * Math.PI * 2,
+      vr: (Math.random() - 0.5) * 0.15,
+      opacity: 1,
+    });
+  }
+
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    frame++;
+    let alive = false;
+    for (const p of pieces) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      if (frame > 90) p.opacity = Math.max(0, p.opacity - 0.015);
+      if (p.opacity <= 0) continue;
+      alive = true;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = p.opacity;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (alive) {
+      requestAnimationFrame(draw);
+    } else {
+      confettiDone = true;
+      dismissBtn.style.opacity = '1';
+      dismissBtn.style.pointerEvents = 'auto';
+    }
+  }
+  requestAnimationFrame(draw);
+}
 
 // --- Tab gate timer ---
 
 let GATE_SECONDS = 300;
 let gateRemaining = GATE_SECONDS;
 let gateUnlocked = false;
+let gateStarted = false;
 let interruptShowing = false;
 let secondsSinceLastInterrupt = 0;
 const INTERRUPT_INTERVAL = 60;
@@ -308,6 +484,7 @@ updateGateDisplay();
 
 setInterval(() => {
   if (gateUnlocked) return;
+  if (!gateStarted) return;
   if (document.hidden) return;
   if (interruptShowing) return;
 
@@ -348,7 +525,10 @@ gateMinutesInput.addEventListener('change', async () => {
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    if (btn.classList.contains('tab-locked')) return;
+    if (btn.classList.contains('tab-locked')) {
+      if (!gateStarted) gateStarted = true;
+      return;
+    }
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');

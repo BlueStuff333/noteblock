@@ -69,22 +69,22 @@ proceedBtn.addEventListener('click', async () => {
   chrome.runtime.sendMessage({ type: 'grantPass', hostname, url: targetUrl });
 });
 
-// --- Binge-free badge ---
+// --- Streak badge ---
 
 (async () => {
-  const data = await chrome.storage.local.get(['timeData']);
-  const timeData = data.timeData || {};
-  const dates = Object.keys(timeData).sort().reverse();
+  const data = await chrome.storage.local.get(['streaks']);
+  const streaks = data.streaks || [];
   const badge = document.getElementById('bingeBadge');
+  const active = streaks.find(s => s.end === null);
 
-  if (!dates.length) {
-    badge.textContent = '🏆 No binge activity recorded';
+  if (!active) {
+    badge.textContent = '';
     return;
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const lastDate = new Date(dates[0] + 'T00:00:00');
-  const days = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-  badge.textContent = `🏆 ${days} ${days === 1 ? 'day' : 'days'} without binging screentime`;
+  const start = new Date(active.start + 'T00:00:00');
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const days = Math.floor((now - start) / (1000 * 60 * 60 * 24)) + 1;
+  badge.textContent = `🔥 ${days} day${days === 1 ? '' : 's'} streak`;
 })();
