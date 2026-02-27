@@ -39,6 +39,18 @@
     .tab-btn.tab-unlocked .tab-lock { display: none; }
     .tab-content, .sub-tab-content { display: none; }
     .tab-content.active, .sub-tab-content.active { display: block; }
+    #tab-lists.lists-locked { position: relative; }
+    #tab-lists.lists-locked::after {
+      content: ''; position: absolute; inset: 0; z-index: 10;
+      cursor: not-allowed;
+    }
+    #tab-lists.lists-locked .card { opacity: 0.45; }
+    #tab-lists.lists-locked input,
+    #tab-lists.lists-locked button,
+    #tab-lists.lists-locked select,
+    #tab-lists.lists-locked textarea,
+    #tab-lists.lists-locked .bs-mini-toggle,
+    #tab-lists.lists-locked .bs-card-header { pointer-events: none; }
 
     /* --- Cards & Grid --- */
     .grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; max-width: 1100px; margin: 0 auto; }
@@ -205,7 +217,7 @@
   <h1>🪷 Noteblock</h1>
   <div class="tabs" id="mainTabs">
     <button class="tab-btn active" data-tab="activity">Activity</button>
-    <button class="tab-btn tab-locked" data-tab="lists">Lists <span class="tab-lock">🔒 <span class="tab-lock-timer" data-lock="lists">3:00</span></span></button>
+    <button class="tab-btn" data-tab="lists">Lists <span class="tab-lock" id="listsTabLock">🔒 <span class="tab-lock-timer" data-lock="lists">3:00</span></span></button>
     <button class="tab-btn" data-tab="options">Options <span class="tab-lock" style="display:none">🔒 <span class="tab-lock-timer" data-lock="options">0:00</span></span></button>
   </div>
 
@@ -303,15 +315,17 @@
         <div class="opt-row" id="listsLockRow">
           <div><strong>Lists lock time</strong><span class="opt-desc">Wait before accessing Blocklist & Exceptions</span></div>
           <div class="opt-right">
+            <span class="tab-lock" id="listsLockBubble">🔒 <span class="tab-lock-timer" id="listsLockBubbleTimer">3:00</span></span>
             <input type="number" class="opt-input" id="listsLockMin" min="0" value="3" disabled>
             <span class="opt-unit">min</span>
-            <span class="tab-lock" id="listsLockBubble">🔒</span>
           </div>
         </div>
         <div class="opt-row">
-          <div><strong>Interruption frequency</strong><span class="opt-desc">Seconds between "are you sure?" prompts</span></div>
+          <div><strong>Interruption frequency</strong><span class="opt-desc">Time between "are you sure?" prompts (0 to disable)</span></div>
           <div class="opt-right">
-            <input type="number" class="opt-input" id="interruptFreq" min="0" value="60">
+            <input type="number" class="opt-input" id="interruptFreqMin" min="0" value="1">
+            <span class="opt-unit">min</span>
+            <input type="number" class="opt-input" id="interruptFreqSec" min="0" max="59" value="0">
             <span class="opt-unit">sec</span>
           </div>
         </div>

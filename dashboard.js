@@ -7,7 +7,7 @@ const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 const DEFAULT_SETTINGS = {
-  darkMode: true, optLockMin: 0, listsLockMin: 3, interruptFreq: 60,
+  darkMode: true, optLockMin: 0, listsLockMin: 3, interruptFreqSec: 60,
   defaultJournal: 300, defaultRejournal: 900, streakSubtitle: '🏆',
   msgInterrupt: 'Are you sure you want to do this?',
   msgStreakEnd: 'End your streak here?',
@@ -239,6 +239,10 @@ function fmtTimer(s) { return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0'
 function updateLockDisplay(name) {
   const L = locks[name];
   document.querySelectorAll(`.tab-lock-timer[data-lock="${name}"]`).forEach(el => el.textContent = fmtTimer(L.remaining));
+  if (name === 'lists') {
+    const bt = document.getElementById('listsLockBubbleTimer');
+    if (bt) bt.textContent = fmtTimer(L.remaining);
+  }
   const btn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
   if (!btn) return;
   const lockSpan = btn.querySelector('.tab-lock');
@@ -246,7 +250,8 @@ function updateLockDisplay(name) {
     btn.classList.remove('tab-locked'); btn.classList.add('tab-unlocked');
     if (lockSpan) lockSpan.style.display = 'none';
   } else {
-    if (!btn.classList.contains('tab-unlocked')) { btn.classList.add('tab-locked'); if (lockSpan) lockSpan.style.display = ''; }
+    if (name !== 'lists' && !btn.classList.contains('tab-unlocked')) btn.classList.add('tab-locked');
+    if (lockSpan) lockSpan.style.display = '';
   }
 }
 
@@ -258,11 +263,12 @@ function unlockLock(name) {
     document.getElementById('listsLockMin').disabled = false;
     const bubble = document.getElementById('listsLockBubble');
     if (bubble) bubble.style.display = 'none';
+    updateListsLockedClass();
   }
 }
 
 function getInterruptInterval() {
-  const freq = S('interruptFreq');
+  const freq = S('interruptFreqSec');
   return freq > 0 ? freq : Infinity;
 }
 
@@ -287,21 +293,34 @@ setInterval(() => {
       document.getElementById('interruptOverlay').classList.add('visible');
     }
     updateLockDisplay(name);
+    if (name === 'lists') updateListsLockedClass();
   }
 }, 1000);
 
 // === Tabs ===
+function switchMainTab(tab) {
+  document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`#mainTabs .tab-btn[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+function updateListsLockedClass() {
+  const listsTab = document.getElementById('tab-lists');
+  if (locks.lists.unlocked) listsTab.classList.remove('lists-locked');
+  else listsTab.classList.add('lists-locked');
+}
 document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.tab;
-    const lockName = tab === 'activity' ? null : tab;
-    if (lockName && locks[lockName] && !locks[lockName].unlocked) {
-      if (locks[lockName].remaining > 0) { if (!locks[lockName].started) locks[lockName].started = true; return; }
+    if (tab === 'lists') {
+      if (!locks.lists.started) locks.lists.started = true;
+      switchMainTab(tab);
+      return;
     }
-    document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-' + tab).classList.add('active');
+    if (tab === 'options' && locks.options && !locks.options.unlocked) {
+      if (locks.options.remaining > 0) { if (!locks.options.started) locks.options.started = true; return; }
+    }
+    switchMainTab(tab);
   });
 });
 document.querySelectorAll('#subTabs .tab-btn').forEach(btn => {
@@ -334,11 +353,13 @@ document.getElementById('nextMonth').addEventListener('click', () => { viewMonth
   if (listsMin <= 0) unlockLock('lists');
   updateLockDisplay('lists');
   updateLockDisplay('options');
+  updateListsLockedClass();
 
   // Populate options inputs
   document.getElementById('optLockMin').value = S('optLockMin');
   document.getElementById('listsLockMin').value = S('listsLockMin');
-  document.getElementById('interruptFreq').value = S('interruptCount');
+  document.getElementById('interruptFreqMin').value = Math.floor(S('interruptFreqSec') / 60);
+  document.getElementById('interruptFreqSec').value = S('interruptFreqSec') % 60;
   document.getElementById('defaultJournalMin').value = Math.floor(S('defaultJournal')/60);
   document.getElementById('defaultJournalSec').value = S('defaultJournal')%60;
   document.getElementById('defaultRejMin').value = Math.floor(S('defaultRejournal')/60);
@@ -358,6 +379,17 @@ document.getElementById('nextMonth').addEventListener('click', () => { viewMonth
 })();
 
 // === Options handlers ===
+
+// Global: clamp any input with max="59" to 0-59 (capture phase = runs first)
+document.addEventListener('change', (e) => {
+  if (e.target.matches('input[type="number"][max="59"]')) {
+    let v = parseInt(e.target.value);
+    if (isNaN(v) || v < 0) v = 0;
+    if (v > 59) v = 0;
+    e.target.value = v;
+  }
+}, true);
+
 function optChange(id, key, transform) {
   document.getElementById(id).addEventListener('change', async () => {
     settings[key] = transform(document.getElementById(id).value);
@@ -366,7 +398,12 @@ function optChange(id, key, transform) {
 }
 optChange('optLockMin', 'optLockMin', v => Math.max(0, parseInt(v)||0));
 optChange('listsLockMin', 'listsLockMin', v => Math.max(0, parseInt(v)||0));
-optChange('interruptFreq', 'interruptFreq', v => Math.max(0, parseInt(v)||0));
+['interruptFreqMin','interruptFreqSec'].forEach(id => {
+  document.getElementById(id).addEventListener('change', async () => {
+    settings.interruptFreqSec = (parseInt(document.getElementById('interruptFreqMin').value)||0)*60 + (parseInt(document.getElementById('interruptFreqSec').value)||0);
+    await saveSettings();
+  });
+});
 optChange('streakSubtitle', 'streakSubtitle', v => v);
 optChange('msgInterrupt', 'msgInterrupt', v => v);
 optChange('msgStreakEnd', 'msgStreakEnd', v => v);
