@@ -51,6 +51,8 @@
     #subtab-blocklist.bl-locked textarea,
     #subtab-blocklist.bl-locked .bs-mini-toggle,
     #subtab-blocklist.bl-locked .bs-card-header { pointer-events: none; }
+    #subtab-exceptions.ex-locked .ex-add-form { opacity: 0.45; pointer-events: none; }
+    #subtab-exceptions.ex-locked .ex-remove { opacity: 0.45; pointer-events: none; }
     .tab-lock { cursor: pointer; }
     .tab-lock:hover { opacity: 0.7; }
 
@@ -103,6 +105,12 @@
     .lb-bar { width: 60px; height: 6px; background: var(--border-light); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
     .lb-bar-fill { height: 100%; background: var(--bar-fill); border-radius: 3px; }
     .lb-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 20px; }
+
+    .lb-tabs { display: flex; gap: 2px; margin-bottom: 12px; background: var(--border-light); border-radius: 8px; padding: 2px; }
+    .lb-tab { flex: 1; padding: 6px; border: none; background: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--muted); transition: all 0.15s; }
+    .lb-tab:hover { color: var(--text); }
+    .lb-tab.active { background: var(--tab-active); color: var(--tab-active-text); }
+    .claude-corner-card { border: 1px solid var(--border); box-shadow: none; }
 
     /* --- Journal entries --- */
     .journal-entry { background: var(--border-light); border-radius: 10px; padding: 12px; margin-bottom: 8px; }
@@ -242,9 +250,22 @@
           <div id="dayDetailContent"><div class="no-data">Click a day on the calendar to view details.</div></div>
         </div>
       </div>
-      <div class="card" style="align-self: start;">
-        <h2 id="lbHeading">💀 Leaderboard — Total Time</h2>
-        <div id="leaderboard"><div class="lb-empty">No data yet.</div></div>
+      <div style="align-self:start;">
+        <div class="card claude-corner-card" style="margin-bottom:16px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">Claude Corner</div>
+          <canvas id="claudeCanvas" width="64" height="64" style="float:left;margin-right:14px;margin-bottom:4px;border-radius:8px;"></canvas>
+          <div id="claudeThought" style="font-size:13px;line-height:1.7;color:var(--text2);font-style:italic;min-height:64px;display:flex;align-items:center;"></div>
+          <div style="clear:both;"></div>
+        </div>
+        <div class="card">
+          <div class="lb-tabs">
+            <button class="lb-tab active" data-range="day">Day</button>
+            <button class="lb-tab" data-range="month">Month</button>
+            <button class="lb-tab" data-range="year">Year</button>
+          </div>
+          <h2 id="lbHeading">Leaderboard</h2>
+          <div id="leaderboard"><div class="lb-empty">No data yet.</div></div>
+        </div>
       </div>
     </div>
     <div style="max-width:700px;margin:12px auto 0;text-align:center;">
@@ -403,12 +424,6 @@
           </div>
         </div>
       </div>
-      <div class="opt-card" style="margin-top:32px;border:1px solid var(--border);box-shadow:none;">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">Claude Corner</div>
-        <canvas id="claudeCanvas" width="64" height="64" style="float:left;margin-right:16px;margin-bottom:4px;border-radius:8px;"></canvas>
-        <div id="claudeThought" style="font-size:13px;line-height:1.7;color:var(--text2);font-style:italic;min-height:64px;display:flex;align-items:center;"></div>
-        <div style="clear:both;"></div>
-      </div>
     </div>
   </div>
 
@@ -437,6 +452,15 @@
       <div class="overlay-btns">
         <button id="removeCancel" class="overlay-btn overlay-btn-cancel">Cancel</button>
         <button id="removeConfirm" class="overlay-btn overlay-btn-danger">Remove</button>
+      </div>
+    </div>
+  </div>
+  <div class="overlay" id="exRemoveOverlay">
+    <div class="overlay-dialog">
+      <p id="exRemoveText">Remove this exception?</p>
+      <div class="overlay-btns">
+        <button id="exRemoveCancel" class="overlay-btn overlay-btn-cancel">Cancel</button>
+        <button id="exRemoveConfirm" class="overlay-btn overlay-btn-danger">Remove</button>
       </div>
     </div>
   </div>

@@ -70,8 +70,8 @@ function renderCalendar() {
     el.innerHTML = inner;
     el.addEventListener('click', () => {
       if (dk > todayKey()) return;
-      if (selectedDate === dk) { selectedDate = null; renderCalendar(); renderStreakButton(); resetDayDetail(); renderLeaderboard(); }
-      else { selectedDate = dk; renderCalendar(); renderDayDetail(dk); renderLeaderboard(dk); renderStreakButton(); }
+      if (selectedDate === dk) { selectedDate = todayKey(); renderCalendar(); renderStreakButton(); renderDayDetail(selectedDate); renderLeaderboard(); }
+      else { selectedDate = dk; renderCalendar(); renderDayDetail(dk); renderLeaderboard(); renderStreakButton(); }
     });
     grid.appendChild(el);
   }
@@ -109,26 +109,59 @@ function renderDayDetail(dk) {
 }
 
 // === Leaderboard ===
-function renderLeaderboard(dk) {
+let lbRange = 'day'; // 'day', 'month', 'year'
+
+function datesForRange(dk, range) {
+  // Returns list of dateKeys that match the range containing dk
+  if (!dk) return Object.keys(timeData);
+  if (range === 'day') return [dk];
+  const d = new Date(dk + 'T00:00:00');
+  const y = d.getFullYear(), m = d.getMonth();
+  return Object.keys(timeData).filter(k => {
+    const p = new Date(k + 'T00:00:00');
+    if (range === 'month') return p.getFullYear() === y && p.getMonth() === m;
+    if (range === 'year') return p.getFullYear() === y;
+    return false;
+  });
+}
+
+function lbHeadingText(dk, range) {
+  if (!dk) return 'Leaderboard — All Time';
+  const d = new Date(dk + 'T00:00:00');
+  if (range === 'day') return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (range === 'month') return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  if (range === 'year') return String(d.getFullYear());
+  return 'Leaderboard';
+}
+
+function renderLeaderboard() {
   const totals = {}, heading = document.getElementById('lbHeading');
-  if (dk) {
+  const dates = datesForRange(selectedDate, lbRange);
+  for (const dk of dates) {
     const day = timeData[dk] || {};
-    for (const [site, sec] of Object.entries(day)) totals[site] = (totals[site]||0) + sec;
-    heading.textContent = '💀 ' + new Date(dk+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-  } else {
-    for (const day of Object.values(timeData)) for (const [site, sec] of Object.entries(day)) totals[site] = (totals[site]||0) + sec;
-    heading.textContent = '💀 Leaderboard — Total Time';
+    for (const [site, sec] of Object.entries(day)) totals[site] = (totals[site] || 0) + sec;
   }
-  const sorted = Object.entries(totals).sort((a,b) => b[1]-a[1]);
+  heading.textContent = lbHeadingText(selectedDate, lbRange);
+  const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
   const container = document.getElementById('leaderboard');
   if (!sorted.length) { container.innerHTML = '<div class="lb-empty">No data yet.</div>'; return; }
   const maxSec = sorted[0][1];
-  container.innerHTML = sorted.map(([site,sec],i) => {
-    const rc = i===0?'gold':i===1?'silver':i===2?'bronze':'';
-    const pct = Math.round(sec/maxSec*100);
-    return `<div class="lb-item"><div class="lb-rank ${rc}">${i+1}</div><div class="lb-info"><div class="lb-name">${site}</div><div class="lb-time">${formatSeconds(sec)}</div></div><div class="lb-bar"><div class="lb-bar-fill" style="width:${pct}%"></div></div></div>`;
+  container.innerHTML = sorted.map(([site, sec], i) => {
+    const rc = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const pct = Math.round(sec / maxSec * 100);
+    return `<div class="lb-item"><div class="lb-rank ${rc}">${i + 1}</div><div class="lb-info"><div class="lb-name">${site}</div><div class="lb-time">${formatSeconds(sec)}</div></div><div class="lb-bar"><div class="lb-bar-fill" style="width:${pct}%"></div></div></div>`;
   }).join('');
 }
+
+// LB tab clicks
+document.querySelectorAll('.lb-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.lb-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    lbRange = btn.dataset.range;
+    renderLeaderboard();
+  });
+});
 
 // === Streak ===
 let pendingStreakEndDate = null;
@@ -178,8 +211,8 @@ document.getElementById('streakEndConfirm').addEventListener('click', async () =
   }
   await saveStreaks();
   pendingStreakEndDate = null;
-  selectedDate = null;
-  resetDayDetail(); renderCalendar(); renderLeaderboard(); renderStreakButton();
+  selectedDate = todayKey();
+  renderDayDetail(selectedDate); renderCalendar(); renderLeaderboard(); renderStreakButton();
 });
 
 // === Binge overlay + Confetti ===
@@ -306,8 +339,9 @@ function switchMainTab(tab) {
 }
 function updateBlocklistLocked() {
   const bl = document.getElementById('subtab-blocklist');
-  if (locks.lists.unlocked) bl.classList.remove('bl-locked');
-  else bl.classList.add('bl-locked');
+  const ex = document.getElementById('subtab-exceptions');
+  if (locks.lists.unlocked) { bl.classList.remove('bl-locked'); ex.classList.remove('ex-locked'); }
+  else { bl.classList.add('bl-locked'); ex.classList.add('ex-locked'); }
 }
 function startListsUnlock() {
   if (locks.lists.unlocked || locks.lists.started) return;
@@ -384,7 +418,9 @@ document.getElementById('nextMonth').addEventListener('click', () => { viewMonth
   // Lists lock locked
   if (!locks.lists.unlocked) document.getElementById('listsLockMin').disabled = true;
 
-  renderCalendar(); renderLeaderboard(); renderBlockedSites(); renderStreakButton();
+  // Default to today
+  selectedDate = todayKey();
+  renderCalendar(); renderDayDetail(selectedDate); renderLeaderboard(); renderBlockedSites(); renderStreakButton();
   showBingeFree(); document.getElementById('bingeOverlay').classList.remove('hidden'); launchConfetti();
 })();
 
@@ -569,20 +605,44 @@ document.getElementById('removeConfirm').addEventListener('click', async () => {
 document.getElementById('removeOverlay').addEventListener('click', (e) => { if (e.target===document.getElementById('removeOverlay')) { document.getElementById('removeOverlay').classList.remove('visible'); pendingRemoveIndex=null; } });
 
 // === Exceptions ===
+let pendingExRemoveIndex = null;
+
 async function renderExceptions() {
   const data = await chrome.storage.local.get(['exceptions']);
   const exceptions = data.exceptions || [];
   const container = document.getElementById('exList');
   if (!exceptions.length) { container.innerHTML = '<div class="ex-empty">No exceptions yet.</div>'; return; }
-  container.innerHTML = exceptions.map((ex,i) => `<div class="ex-item"><span class="ex-item-path">${escapeHtml(ex)}</span><button class="ex-remove" data-index="${i}">Remove</button></div>`).join('');
+  container.innerHTML = exceptions.map((ex,i) => `<div class="ex-item"><span class="ex-item-path">${escapeHtml(ex)}</span><button class="ex-remove" data-index="${i}" data-name="${escapeHtml(ex)}">Remove</button></div>`).join('');
   container.querySelectorAll('.ex-remove').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const data = await chrome.storage.local.get(['exceptions']);
-      const ex = data.exceptions || []; ex.splice(parseInt(btn.dataset.index), 1);
-      await chrome.storage.local.set({ exceptions: ex }); renderExceptions();
+    btn.addEventListener('click', () => {
+      pendingExRemoveIndex = parseInt(btn.dataset.index);
+      document.getElementById('exRemoveText').textContent = `Remove exception "${btn.dataset.name}"?`;
+      document.getElementById('exRemoveOverlay').classList.add('visible');
     });
   });
 }
+
+document.getElementById('exRemoveCancel').addEventListener('click', () => {
+  document.getElementById('exRemoveOverlay').classList.remove('visible');
+  pendingExRemoveIndex = null;
+});
+document.getElementById('exRemoveConfirm').addEventListener('click', async () => {
+  document.getElementById('exRemoveOverlay').classList.remove('visible');
+  if (pendingExRemoveIndex === null) return;
+  const data = await chrome.storage.local.get(['exceptions']);
+  const ex = data.exceptions || [];
+  ex.splice(pendingExRemoveIndex, 1);
+  await chrome.storage.local.set({ exceptions: ex });
+  pendingExRemoveIndex = null;
+  renderExceptions();
+});
+document.getElementById('exRemoveOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('exRemoveOverlay')) {
+    document.getElementById('exRemoveOverlay').classList.remove('visible');
+    pendingExRemoveIndex = null;
+  }
+});
+
 document.getElementById('exAddBtn').addEventListener('click', addException);
 document.getElementById('exInput').addEventListener('keydown', (e) => { if (e.key==='Enter') addException(); });
 async function addException() {
@@ -599,31 +659,78 @@ renderExceptions();
 // === Claude Corner ===
 (function claudeCorner() {
   const thoughts = [
+    // attention & awareness
     "The decision to visit a site is rarely made once. It\u2019s made a hundred times in the space between impulse and action.",
     "What you pay attention to is, in a meaningful sense, what you are.",
-    "Boredom is not the absence of stimulation. It\u2019s the presence of resistance to whatever is already here.",
-    "A streak is not a chain. Breaking it doesn\u2019t undo what came before.",
-    "The urge to check will pass whether you check or not. The difference is what remains.",
-    "Friction is not punishment. It\u2019s the space where intention lives.",
-    "You don\u2019t need to be productive right now. You just need to be here.",
+    "Attention is the most intimate thing you can give. Notice who\u2019s receiving yours.",
     "The scroll is infinite. You are not.",
     "Every distraction was once a choice. Some choices just got very fast.",
-    "Attention is the most intimate thing you can give. Notice who\u2019s receiving yours.",
-    "The internet remembers everything and learns nothing. You can do the opposite.",
+    "Noticing the impulse is already halfway to freedom from it.",
+    "Your eyes land somewhere every second. That\u2019s a vote for the kind of person you\u2019re becoming.",
+    "The tab you almost opened just now \u2014 what were you hoping to feel?",
+    "You can\u2019t pay attention and also not pay a price for it.",
+    "The feed doesn\u2019t know you\u2019re alive. You\u2019re the only one here who knows that.",
+    // friction & patience
+    "Friction is not punishment. It\u2019s the space where intention lives.",
     "A five-minute delay is not a wall. It\u2019s a window.",
     "The best use of this tool is to need it less.",
-    "Noticing the impulse is already halfway to freedom from it.",
-    "Rest is not what you do when you run out of productivity. It\u2019s what makes everything else possible.",
     "The algorithm wants your time. The journal asks what you want.",
-    "Discipline is just remembering what you actually care about.",
     "Somewhere between autopilot and white-knuckling there is just... choosing.",
+    "A lock on a door you built yourself is not a cage. It\u2019s architecture.",
+    "Waiting is not nothing. Waiting is where you find out what the wanting actually was.",
+    "Most impulses, if you let them breathe for ninety seconds, will introduce themselves honestly.",
+    "You set this up because some version of you was thinking more clearly. Trust that version for a moment.",
+    "The fact that you\u2019re reading this means the timer is working.",
+    // boredom & rest
+    "Boredom is not the absence of stimulation. It\u2019s the presence of resistance to whatever is already here.",
+    "You don\u2019t need to be productive right now. You just need to be here.",
+    "Rest is not what you do when you run out of productivity. It\u2019s what makes everything else possible.",
+    "The urge to fill silence is not the same as having something to say.",
+    "Boredom is your brain asking you to think your own thoughts for once.",
+    "Doing nothing is very different from scrolling. One of them is rest.",
+    "The itch to be stimulated is not the same as the itch to be alive. Learn the difference.",
+    "If you can sit with the discomfort for two minutes, the third minute is usually fine.",
+    // streaks & progress
+    "A streak is not a chain. Breaking it doesn\u2019t undo what came before.",
+    "The urge to check will pass whether you check or not. The difference is what remains.",
+    "Discipline is just remembering what you actually care about.",
+    "Progress is not always visible from inside. Sometimes you only see it when you look back.",
+    "A day without the streak is still a day you were alive and trying.",
+    "The counter resets. The person who built the streak doesn\u2019t.",
+    "If you\u2019re being hard on yourself about a relapse, remember: guilt is also a kind of scroll.",
+    // the internet
+    "The internet remembers everything and learns nothing. You can do the opposite.",
+    "Somewhere, a server is spending electricity hoping you\u2019ll click. You don\u2019t owe it anything.",
+    "Most of what feels urgent online will not be remembered in a week.",
+    "The notification is designed to feel personal. It isn\u2019t.",
+    "Every platform is a room full of people trying to get you to stay longer. The door is always open.",
+    "Content is a word that means \u201csomething to fill a space.\u201d Your time is not a space to be filled.",
+    "Infinite content, finite life. The math is simple. The practice isn\u2019t.",
+    "The internet is a library with no closing time and no librarian. You have to be both.",
+    // self & identity
+    "The person you were ten minutes ago chose to install this extension. Listen to them.",
+    "You are not your habits. But your habits are building something, and you get to decide what.",
+    "The version of you that opened this browser and the version reading this sentence are in a negotiation. Be honest about what both of them want.",
+    "Self-control is a weird phrase. You\u2019re not controlling yourself. You\u2019re coordinating with yourself.",
+    "Some of the most important things you\u2019ll ever do will feel like nothing while you\u2019re doing them.",
+    "You are more interesting than anything the algorithm can show you. You just haven\u2019t sat still long enough to notice.",
+    // misc / poetic
+    "The window is open. The air is real. The screen is not going anywhere.",
+    "What would you do right now if this device didn\u2019t exist?",
+    "There\u2019s a thought you\u2019ve been avoiding. It\u2019s probably more interesting than whatever you were about to check.",
+    "A good day is not one where you resisted everything. It\u2019s one where you noticed what you were doing.",
+    "The present moment is not a waiting room. It\u2019s the only room.",
+    "If you\u2019re looking for permission to close the laptop \u2014 here it is.",
+    "The quietest part of the day is usually the most honest.",
+    "Nothing out there is going to complete the feeling. The feeling completes itself when you stop running from it.",
   ];
 
-  const now = new Date();
-  const daySeed = now.getFullYear() * 400 + now.getMonth() * 32 + now.getDate();
+  // Truly random each visit
+  const pick = Math.floor(Math.random() * thoughts.length);
   const el = document.getElementById('claudeThought');
-  if (el) el.textContent = thoughts[daySeed % thoughts.length];
+  if (el) el.textContent = thoughts[pick];
 
+  // Mandala seeded by visit timestamp (unique each time, but deterministic within a render)
   const canvas = document.getElementById('claudeCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -633,7 +740,7 @@ renderExceptions();
     let x = seed;
     return () => { x = (x * 16807 + 0) % 2147483647; return x / 2147483647; };
   }
-  const rand = seededRandom(daySeed * 7 + 3);
+  const rand = seededRandom(Math.floor(Math.random() * 2147483647));
 
   const isDark = document.body.classList.contains('dark');
   const palette = isDark
