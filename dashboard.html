@@ -39,18 +39,20 @@
     .tab-btn.tab-unlocked .tab-lock { display: none; }
     .tab-content, .sub-tab-content { display: none; }
     .tab-content.active, .sub-tab-content.active { display: block; }
-    #tab-lists.lists-locked { position: relative; }
-    #tab-lists.lists-locked::after {
+    #subtab-blocklist.bl-locked { position: relative; }
+    #subtab-blocklist.bl-locked::after {
       content: ''; position: absolute; inset: 0; z-index: 10;
       cursor: not-allowed;
     }
-    #tab-lists.lists-locked .card { opacity: 0.45; }
-    #tab-lists.lists-locked input,
-    #tab-lists.lists-locked button,
-    #tab-lists.lists-locked select,
-    #tab-lists.lists-locked textarea,
-    #tab-lists.lists-locked .bs-mini-toggle,
-    #tab-lists.lists-locked .bs-card-header { pointer-events: none; }
+    #subtab-blocklist.bl-locked .card { opacity: 0.45; }
+    #subtab-blocklist.bl-locked input,
+    #subtab-blocklist.bl-locked button,
+    #subtab-blocklist.bl-locked select,
+    #subtab-blocklist.bl-locked textarea,
+    #subtab-blocklist.bl-locked .bs-mini-toggle,
+    #subtab-blocklist.bl-locked .bs-card-header { pointer-events: none; }
+    .tab-lock { cursor: pointer; }
+    .tab-lock:hover { opacity: 0.7; }
 
     /* --- Cards & Grid --- */
     .grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; max-width: 1100px; margin: 0 auto; }
@@ -217,7 +219,7 @@
   <h1>🪷 Noteblock</h1>
   <div class="tabs" id="mainTabs">
     <button class="tab-btn active" data-tab="activity">Activity</button>
-    <button class="tab-btn" data-tab="lists">Lists <span class="tab-lock" id="listsTabLock">🔒 <span class="tab-lock-timer" data-lock="lists">3:00</span></span></button>
+    <button class="tab-btn" data-tab="lists">Lists <span class="tab-lock" id="listsTabLock" title="Click to begin unlock">🔒 <span class="tab-lock-timer" data-lock="lists">3:00</span></span></button>
     <button class="tab-btn" data-tab="options">Options <span class="tab-lock" style="display:none">🔒 <span class="tab-lock-timer" data-lock="options">0:00</span></span></button>
   </div>
 
@@ -315,7 +317,7 @@
         <div class="opt-row" id="listsLockRow">
           <div><strong>Lists lock time</strong><span class="opt-desc">Wait before accessing Blocklist & Exceptions</span></div>
           <div class="opt-right">
-            <span class="tab-lock" id="listsLockBubble">🔒 <span class="tab-lock-timer" id="listsLockBubbleTimer">3:00</span></span>
+            <span class="tab-lock" id="listsLockBubble" title="Click to begin unlock">🔒 <span class="tab-lock-timer" id="listsLockBubbleTimer">3:00</span></span>
             <input type="number" class="opt-input" id="listsLockMin" min="0" value="3" disabled>
             <span class="opt-unit">min</span>
           </div>
@@ -400,6 +402,12 @@
             <input type="file" id="importFile" accept=".json" style="display:none;">
           </div>
         </div>
+      </div>
+      <div class="opt-card" style="margin-top:32px;border:1px solid var(--border);box-shadow:none;">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">Claude Corner</div>
+        <canvas id="claudeCanvas" width="64" height="64" style="float:left;margin-right:16px;margin-bottom:4px;border-radius:8px;"></canvas>
+        <div id="claudeThought" style="font-size:13px;line-height:1.7;color:var(--text2);font-style:italic;min-height:64px;display:flex;align-items:center;"></div>
+        <div style="clear:both;"></div>
       </div>
     </div>
   </div>

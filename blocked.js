@@ -25,8 +25,9 @@ chrome.runtime.sendMessage({ type: 'getSiteSeconds', hostname }, (secs) => {
   minSeconds = secs || 300;
   secondsLeft = minSeconds;
   updateTimerDisplay();
-  startTimer();
 });
+
+let timerStarted = false;
 
 function updateTimerDisplay() {
   const m = Math.floor(secondsLeft / 60);
@@ -48,7 +49,10 @@ function startTimer() {
   }, 1000);
 }
 
-journal.addEventListener('input', checkReady);
+journal.addEventListener('input', () => {
+  if (!timerStarted) { timerStarted = true; startTimer(); }
+  checkReady();
+});
 
 proceedBtn.addEventListener('click', async () => {
   if (!timerDone || !journal.value.trim()) return;

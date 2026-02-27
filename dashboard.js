@@ -263,7 +263,7 @@ function unlockLock(name) {
     document.getElementById('listsLockMin').disabled = false;
     const bubble = document.getElementById('listsLockBubble');
     if (bubble) bubble.style.display = 'none';
-    updateListsLockedClass();
+    updateBlocklistLocked();
   }
 }
 
@@ -293,7 +293,7 @@ setInterval(() => {
       document.getElementById('interruptOverlay').classList.add('visible');
     }
     updateLockDisplay(name);
-    if (name === 'lists') updateListsLockedClass();
+    if (name === 'lists') updateBlocklistLocked();
   }
 }, 1000);
 
@@ -304,19 +304,29 @@ function switchMainTab(tab) {
   document.querySelector(`#mainTabs .tab-btn[data-tab="${tab}"]`).classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
 }
-function updateListsLockedClass() {
-  const listsTab = document.getElementById('tab-lists');
-  if (locks.lists.unlocked) listsTab.classList.remove('lists-locked');
-  else listsTab.classList.add('lists-locked');
+function updateBlocklistLocked() {
+  const bl = document.getElementById('subtab-blocklist');
+  if (locks.lists.unlocked) bl.classList.remove('bl-locked');
+  else bl.classList.add('bl-locked');
 }
+function startListsUnlock() {
+  if (locks.lists.unlocked || locks.lists.started) return;
+  locks.lists.started = true;
+}
+
+// Lock bubble click handlers (start unlock)
+document.getElementById('listsTabLock').addEventListener('click', (e) => {
+  e.stopPropagation();
+  startListsUnlock();
+});
+document.getElementById('listsLockBubble').addEventListener('click', (e) => {
+  e.stopPropagation();
+  startListsUnlock();
+});
+
 document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.tab;
-    if (tab === 'lists') {
-      if (!locks.lists.started) locks.lists.started = true;
-      switchMainTab(tab);
-      return;
-    }
     if (tab === 'options' && locks.options && !locks.options.unlocked) {
       if (locks.options.remaining > 0) { if (!locks.options.started) locks.options.started = true; return; }
     }
@@ -353,7 +363,7 @@ document.getElementById('nextMonth').addEventListener('click', () => { viewMonth
   if (listsMin <= 0) unlockLock('lists');
   updateLockDisplay('lists');
   updateLockDisplay('options');
-  updateListsLockedClass();
+  updateBlocklistLocked();
 
   // Populate options inputs
   document.getElementById('optLockMin').value = S('optLockMin');
@@ -585,3 +595,72 @@ async function addException() {
   ex.push(val); await chrome.storage.local.set({ exceptions: ex }); input.value = ''; renderExceptions();
 }
 renderExceptions();
+
+// === Claude Corner ===
+(function claudeCorner() {
+  const thoughts = [
+    "The decision to visit a site is rarely made once. It\u2019s made a hundred times in the space between impulse and action.",
+    "What you pay attention to is, in a meaningful sense, what you are.",
+    "Boredom is not the absence of stimulation. It\u2019s the presence of resistance to whatever is already here.",
+    "A streak is not a chain. Breaking it doesn\u2019t undo what came before.",
+    "The urge to check will pass whether you check or not. The difference is what remains.",
+    "Friction is not punishment. It\u2019s the space where intention lives.",
+    "You don\u2019t need to be productive right now. You just need to be here.",
+    "The scroll is infinite. You are not.",
+    "Every distraction was once a choice. Some choices just got very fast.",
+    "Attention is the most intimate thing you can give. Notice who\u2019s receiving yours.",
+    "The internet remembers everything and learns nothing. You can do the opposite.",
+    "A five-minute delay is not a wall. It\u2019s a window.",
+    "The best use of this tool is to need it less.",
+    "Noticing the impulse is already halfway to freedom from it.",
+    "Rest is not what you do when you run out of productivity. It\u2019s what makes everything else possible.",
+    "The algorithm wants your time. The journal asks what you want.",
+    "Discipline is just remembering what you actually care about.",
+    "Somewhere between autopilot and white-knuckling there is just... choosing.",
+  ];
+
+  const now = new Date();
+  const daySeed = now.getFullYear() * 400 + now.getMonth() * 32 + now.getDate();
+  const el = document.getElementById('claudeThought');
+  if (el) el.textContent = thoughts[daySeed % thoughts.length];
+
+  const canvas = document.getElementById('claudeCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const s = 64, cx = s / 2, cy = s / 2;
+
+  function seededRandom(seed) {
+    let x = seed;
+    return () => { x = (x * 16807 + 0) % 2147483647; return x / 2147483647; };
+  }
+  const rand = seededRandom(daySeed * 7 + 3);
+
+  const isDark = document.body.classList.contains('dark');
+  const palette = isDark
+    ? ['#5a5a8c','#8e5a7a','#3a6a5a','#7a6a3a','#6a3a6a','#4a7a8a']
+    : ['#b888a4','#8aaa8a','#a4a0c8','#c8a878','#88aab8','#c488a0'];
+
+  ctx.clearRect(0, 0, s, s);
+  const layers = 3 + Math.floor(rand() * 3);
+  for (let i = 0; i < layers; i++) {
+    const r = 8 + rand() * 20;
+    const petals = 3 + Math.floor(rand() * 6);
+    const color = palette[Math.floor(rand() * palette.length)];
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.8 + rand() * 0.8;
+    ctx.globalAlpha = 0.4 + rand() * 0.4;
+    const offset = rand() * Math.PI * 2;
+    for (let p = 0; p < petals; p++) {
+      const angle = offset + (p / petals) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, angle - 0.4 - rand() * 0.5, angle + 0.4 + rand() * 0.5);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = isDark ? '#f0d080' : '#c9a96e';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+})();
