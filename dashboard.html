@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Noteblock — Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      padding: 32px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      max-width: 1100px;
+      margin: 0 auto 20px;
+      background: white;
+      border-radius: 10px;
+      padding: 4px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #888;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { color: #333; }
+    .tab-btn.active { background: #2d3436; color: white; }
+    .tab-btn.tab-locked {
+      color: #bbb;
+      cursor: not-allowed;
+      position: relative;
+    }
+    .tab-btn.tab-locked:hover { color: #bbb; }
+    .tab-lock {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: #f0f0f0;
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: #999;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+    .tab-lock-timer { font-variant-numeric: tabular-nums; }
+    .tab-btn.tab-unlocked .tab-lock { display: none; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Blocked sites tab */
+    .bs-add-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .bs-add-form input {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    .bs-add-form input:focus { border-color: #636e72; }
+    .bs-add-form .bs-host { flex: 1; }
+    .bs-add-form button {
+      background: #2d3436;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .bs-add-form button:hover { background: #636e72; }
+    .bs-card {
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      transition: box-shadow 0.15s;
+    }
+    .bs-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .bs-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .bs-card.collapsed .bs-card-header { margin-bottom: 0; }
+    .bs-card-host { font-size: 14px; font-weight: 600; }
+    .bs-card-actions { display: flex; align-items: center; gap: 8px; }
+    .bs-card-chevron {
+      font-size: 14px;
+      color: #999;
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+    .bs-card:not(.collapsed) .bs-card-chevron { transform: rotate(90deg); }
+    .bs-card-body {
+      overflow: hidden;
+      max-height: 200px;
+      transition: max-height 0.25s ease;
+    }
+    .bs-card.collapsed .bs-card-body { max-height: 0; }
+    .bs-card-remove {
+      background: none;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      color: #888;
+    }
+    .bs-card-remove:hover { border-color: #e74c3c; color: #e74c3c; }
+    .bs-card-rows { display: flex; flex-direction: column; gap: 6px; }
+    .bs-card-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #555;
+    }
+    .bs-card-row label { width: 90px; flex-shrink: 0; font-weight: 500; }
+    .bs-card-input {
+      width: 50px;
+      text-align: center;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 4px;
+      font-size: 12px;
+      outline: none;
+    }
+    .bs-card-input:focus { border-color: #636e72; }
+    .bs-card-input:disabled { background: #f5f5f5; color: #bbb; }
+    .bs-mini-toggle {
+      width: 32px;
+      height: 18px;
+      border-radius: 9px;
+      background: #ccc;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .bs-mini-toggle.on { background: #27ae60; }
+    .bs-mini-toggle-knob {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: white;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: left 0.2s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .bs-mini-toggle.on .bs-mini-toggle-knob { left: 16px; }
+    .bs-card-row .unit { color: #999; font-size: 11px; }
+    .bs-card.hard-blocked .bs-card-host { color: #e74c3c; }
+    .bs-empty { color: #aaa; font-size: 14px; text-align: center; padding: 32px; }
+    .bs-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .bs-toolbar-left, .bs-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #666;
+    }
+    .bs-toolbar-select {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      outline: none;
+      background: white;
+    }
+    .bs-confirm-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .bs-confirm-overlay.visible { display: flex; }
+    .bs-confirm-dialog {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      text-align: center;
+      max-width: 340px;
+    }
+    .bs-confirm-dialog p { font-size: 14px; margin-bottom: 16px; }
+    .bs-confirm-btns { display: flex; gap: 8px; justify-content: center; }
+    .bs-confirm-cancel, .bs-confirm-yes {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .bs-confirm-cancel { background: #f0f0f0; color: #333; }
+    .bs-confirm-cancel:hover { background: #e0e0e0; }
+    .bs-confirm-yes { background: #e74c3c; color: white; }
+    .bs-confirm-yes:hover { background: #c0392b; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      padding: 24px;
+    }
+    .card h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #333;
+    }
+
+    /* Calendar */
+    .cal-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .cal-nav button {
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .cal-nav button:hover { background: #f0f0f0; }
+    .cal-nav span { font-weight: 600; font-size: 15px; }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .cal-header {
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      color: #999;
+      padding: 4px 0;
+    }
+    .cal-day {
+      aspect-ratio: 1;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.15s;
+    }
+    .cal-day:hover { background: #f5f5f5; }
+    .cal-day.empty { pointer-events: none; }
+    .cal-day.today { font-weight: 700; }
+    .cal-day.selected { background: #2d3436; color: white; }
+    .cal-day.selected:hover { background: #636e72; }
+    .cal-day .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #e74c3c;
+      margin-top: 2px;
+    }
+    .cal-day.selected .dot { background: #ffd700; }
+    .cal-day .day-time {
+      font-size: 9px;
+      color: #e74c3c;
+      margin-top: 1px;
+    }
+    .cal-day.selected .day-time { color: #ffd700; }
+
+    /* Day detail panel */
+    .day-detail { margin-top: 20px; }
+    .day-detail h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+    .day-detail .no-data { color: #aaa; font-size: 13px; }
+    .time-breakdown {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .time-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .time-bar-label { width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+    .time-bar-track { flex: 1; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+    .time-bar-fill { height: 100%; background: #e74c3c; border-radius: 4px; transition: width 0.3s; }
+    .time-bar-value { width: 50px; text-align: right; color: #888; font-size: 12px; }
+
+    .journal-entries { display: flex; flex-direction: column; gap: 10px; }
+    .journal-entry {
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .journal-entry .je-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .journal-entry .je-site { font-weight: 600; color: #333; }
+    .journal-entry .je-text { font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+
+    /* Leaderboard */
+    .lb-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+      gap: 12px;
+    }
+    .lb-item:last-child { border: none; }
+    .lb-rank {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .lb-rank.gold { background: #ffd700; color: #333; }
+    .lb-rank.silver { background: #c0c0c0; color: #333; }
+    .lb-rank.bronze { background: #cd7f32; color: white; }
+    .lb-info { flex: 1; }
+    .lb-name { font-size: 14px; font-weight: 500; }
+    .lb-time { font-size: 12px; color: #888; }
+    .lb-bar { width: 60px; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+    .lb-bar-fill { height: 100%; background: #2d3436; border-radius: 3px; }
+    .lb-empty { color: #aaa; font-size: 13px; text-align: center; padding: 24px; }
+
+    /* Binge-free overlay */
+    .binge-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: bingeFadeIn 0.3s ease;
+    }
+    .binge-overlay.hidden { display: none; }
+    @keyframes bingeFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .binge-dialog {
+      background: white;
+      border-radius: 20px;
+      padding: 48px 56px;
+      text-align: center;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+      animation: bingePopIn 0.35s ease;
+    }
+    @keyframes bingePopIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .binge-number {
+      font-size: 72px;
+      font-weight: 800;
+      color: #2d3436;
+      line-height: 1;
+    }
+    .binge-label {
+      font-size: 18px;
+      color: #888;
+      font-weight: 500;
+      margin-top: 8px;
+      margin-bottom: 28px;
+    }
+    .binge-dismiss {
+      background: #2d3436;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 32px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .binge-dismiss:hover { background: #636e72; }
+
+    /* Exceptions */
+    .ex-desc {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .ex-add-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .ex-input {
+      flex: 1;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    .ex-input:focus { border-color: #636e72; }
+    .ex-add-form button {
+      background: #2d3436;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .ex-add-form button:hover { background: #636e72; }
+    .ex-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+    }
+    .ex-item:last-child { border: none; }
+    .ex-item-path { font-weight: 500; font-family: monospace; font-size: 13px; }
+    .ex-remove {
+      background: none;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      color: #888;
+    }
+    .ex-remove:hover { border-color: #e74c3c; color: #e74c3c; }
+    .ex-empty { color: #aaa; font-size: 13px; text-align: center; padding: 24px; }
+
+    /* Gate settings */
+    .gate-settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .gate-settings-row strong { font-size: 14px; display: block; }
+    .gate-settings-desc { font-size: 12px; color: #888; }
+    .gate-settings-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .gate-input {
+      width: 52px;
+      text-align: center;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 5px;
+      font-size: 13px;
+      outline: none;
+    }
+    .gate-input:focus { border-color: #636e72; }
+    .gate-input:disabled { background: #f5f5f5; color: #bbb; }
+    .gate-unit { font-size: 12px; color: #999; }
+    .gate-toggle-locked { opacity: 0.5; pointer-events: none; }
+
+    /* Interrupt overlay */
+    .interrupt-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+    }
+    .interrupt-overlay.visible { display: flex; }
+    .interrupt-dialog {
+      background: white;
+      border-radius: 14px;
+      padding: 28px 36px;
+      text-align: center;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+      animation: interruptPop 0.25s ease;
+    }
+    @keyframes interruptPop {
+      from { transform: scale(0.85); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .interrupt-dialog p { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+    .interrupt-yes {
+      background: #2d3436;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 28px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .interrupt-yes:hover { background: #636e72; }
+  </style>
+</head>
+<body>
+  <h1>📊 Dashboard</h1>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="activity">Activity</button>
+    <button class="tab-btn tab-locked" data-tab="blocked">Blocked Sites <span class="tab-lock">🔒 <span class="tab-lock-timer">5:00</span></span></button>
+    <button class="tab-btn tab-locked" data-tab="exceptions">Exceptions <span class="tab-lock">🔒 <span class="tab-lock-timer">5:00</span></span></button>
+  </div>
+  <div class="tab-content active" id="tab-activity">
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Calendar</h2>
+        <div class="cal-nav">
+          <button id="prevMonth">← Prev</button>
+          <span id="monthLabel"></span>
+          <button id="nextMonth">Next →</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+      <div class="card day-detail" id="dayDetail" style="margin-top:20px;">
+        <h3 id="dayDetailTitle">Select a day</h3>
+        <div id="dayDetailContent"><div class="no-data">Click a day on the calendar to view details.</div></div>
+      </div>
+    </div>
+    <div class="card" style="align-self: start;">
+      <h2>💀 Leaderboard — Total Time</h2>
+      <div id="leaderboard"><div class="lb-empty">No data yet.</div></div>
+    </div>
+  </div>
+  <div class="card gate-settings" style="max-width:700px;margin:20px auto 0;">
+    <div class="gate-settings-row">
+      <div>
+        <strong>Edit cooldown</strong>
+        <span class="gate-settings-desc">Require waiting before editing blocklist & exceptions</span>
+      </div>
+      <div class="gate-settings-right">
+        <input type="number" class="gate-input" id="gateMinutesInput" min="0" value="5" disabled>
+        <span class="gate-unit">min</span>
+        <div class="bs-mini-toggle on gate-toggle-locked" id="gateToggle"><div class="bs-mini-toggle-knob"></div></div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div class="interrupt-overlay" id="interruptOverlay">
+    <div class="interrupt-dialog">
+      <p>Are you sure you want to do this?</p>
+      <div class="interrupt-btns">
+        <button id="interruptYes" class="interrupt-yes">Yes, keep waiting</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-blocked">
+    <div class="card" style="max-width:700px;margin:0 auto;">
+      <h2>Blocked Sites</h2>
+      <div class="bs-add-form">
+        <input type="text" class="bs-host" id="bsHostname" placeholder="e.g. reddit.com">
+        <button id="bsAddBtn">Add</button>
+      </div>
+      <div class="bs-toolbar">
+        <div class="bs-toolbar-left">
+          <label>Sort:</label>
+          <select id="bsSort" class="bs-toolbar-select">
+            <option value="journal">Journal first</option>
+            <option value="hardblock">Hard block first</option>
+            <option value="time">Time</option>
+          </select>
+        </div>
+        <div class="bs-toolbar-right">
+          <label>Confirm remove</label>
+          <div class="bs-mini-toggle on" id="bsConfirmToggle"><div class="bs-mini-toggle-knob"></div></div>
+        </div>
+      </div>
+      <div id="bsSiteList"></div>
+      <div class="bs-confirm-overlay" id="bsConfirmOverlay">
+        <div class="bs-confirm-dialog">
+          <p>Remove <strong id="bsConfirmHost"></strong> from the blocklist?</p>
+          <div class="bs-confirm-btns">
+            <button id="bsConfirmCancel" class="bs-confirm-cancel">Cancel</button>
+            <button id="bsConfirmYes" class="bs-confirm-yes">Remove</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tab-content" id="tab-exceptions">
+    <div class="card" style="max-width:700px;margin:0 auto;">
+      <h2>Exceptions</h2>
+      <p class="ex-desc">Subdomains or paths that won't be blocked, even if their parent site is on the blocklist.</p>
+      <div class="ex-add-form">
+        <input type="text" class="ex-input" id="exInput" placeholder="e.g. old.reddit.com or reddit.com/r/programming">
+        <button id="exAddBtn">Add</button>
+      </div>
+      <div id="exList"></div>
+    </div>
+  </div>
+  <div class="binge-overlay" id="bingeOverlay">
+    <div class="binge-dialog">
+      <div class="binge-number" id="bingeCount">0</div>
+      <div class="binge-label">days binge-free</div>
+      <button class="binge-dismiss" id="bingeDismiss">Continue</button>
+    </div>
+  </div>
+  <script src="dashboard.js"></script>
+</body>
+</html>
