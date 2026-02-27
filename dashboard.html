@@ -39,18 +39,16 @@
     .tab-btn.tab-unlocked .tab-lock { display: none; }
     .tab-content, .sub-tab-content { display: none; }
     .tab-content.active, .sub-tab-content.active { display: block; }
-    #subtab-blocklist.bl-locked { position: relative; }
-    #subtab-blocklist.bl-locked::after {
-      content: ''; position: absolute; inset: 0; z-index: 10;
-      cursor: not-allowed;
-    }
     #subtab-blocklist.bl-locked .card { opacity: 0.45; }
     #subtab-blocklist.bl-locked input,
     #subtab-blocklist.bl-locked button,
     #subtab-blocklist.bl-locked select,
     #subtab-blocklist.bl-locked textarea,
-    #subtab-blocklist.bl-locked .bs-mini-toggle,
-    #subtab-blocklist.bl-locked .bs-card-header { pointer-events: none; }
+    #subtab-blocklist.bl-locked .bs-mini-toggle { pointer-events: none; }
+    #subtab-blocklist.bl-locked .bs-card-header { pointer-events: auto; cursor: pointer; }
+    #subtab-blocklist.bl-locked .bs-card-remove { pointer-events: none; opacity: 0.3; }
+    #subtab-blocklist.bl-locked .bs-add-form,
+    #subtab-blocklist.bl-locked .bs-toolbar { pointer-events: none; opacity: 0.3; }
     #subtab-exceptions.ex-locked .ex-add-form { opacity: 0.45; pointer-events: none; }
     #subtab-exceptions.ex-locked .ex-remove { opacity: 0.45; pointer-events: none; }
     .tab-lock { cursor: pointer; }

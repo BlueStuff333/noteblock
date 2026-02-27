@@ -343,19 +343,28 @@ function updateBlocklistLocked() {
   if (locks.lists.unlocked) { bl.classList.remove('bl-locked'); ex.classList.remove('ex-locked'); }
   else { bl.classList.add('bl-locked'); ex.classList.add('ex-locked'); }
 }
-function startListsUnlock() {
-  if (locks.lists.unlocked || locks.lists.started) return;
-  locks.lists.started = true;
+function toggleListsLock() {
+  if (locks.lists.unlocked) return;
+  if (locks.lists.started) {
+    // Re-lock: reset timer
+    locks.lists.started = false;
+    locks.lists.remaining = S('listsLockMin') * 60;
+    locks.lists.elapsedSinceInterrupt = 0;
+    updateLockDisplay('lists');
+    updateBlocklistLocked();
+  } else {
+    locks.lists.started = true;
+  }
 }
 
-// Lock bubble click handlers (start unlock)
+// Lock bubble click handlers
 document.getElementById('listsTabLock').addEventListener('click', (e) => {
   e.stopPropagation();
-  startListsUnlock();
+  toggleListsLock();
 });
 document.getElementById('listsLockBubble').addEventListener('click', (e) => {
   e.stopPropagation();
-  startListsUnlock();
+  toggleListsLock();
 });
 
 document.querySelectorAll('#mainTabs .tab-btn').forEach(btn => {
